@@ -85,5 +85,8 @@
 ## 현재 상태
 
 - [x] 프로젝트 초기화 (CLAUDE.md, spec.md, prompt_plan.md 생성)
-- [x] Phase 1 코드 구현 완료 (테스트 13개 통과)
-- [x] Phase 1 E2E: Telegram Bot 생성 + config.yaml 작성 + 폰 테스트
+- [x] Phase 1 완료 — /send → 로컬 파일 생성 (테스트 13개)
+- [x] Phase 2 완료 — /run → Claude Code 실행 + webhook + Cloudflare Tunnel (bot.ki-garu.com)
+- [x] Phase 3 코드 구현 완료 — /pipeline 자동 체인 + 배치 큐 (테스트 60개)
+- [ ] Phase 3 잔여 — 배치 스케줄러(8시 알림) + /pipeline Bot E2E
+- [ ] Phase 4 미착수 — 에러 핸들링 + launchd + /status
