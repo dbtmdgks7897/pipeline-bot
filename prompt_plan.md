@@ -44,7 +44,7 @@
 
 완료 기준: /pipeline 한 번으로 체인이 돌고 승인 지점에서만 멈춘다.
 
-## Phase 4: 안정화
+## Phase 4: 안정화 ✅
 
 목표: 에러 복구 + 자동 시작 + 로깅.
 
@@ -54,7 +54,7 @@
 - [x] launchd plist 작성 — com.pipeline-bot + com.cloudflared-tunnel (자동 재시작)
 - [x] /status 명령 — 실행 중 프로젝트 + 파이프라인 + 배치 큐 상태
 - [x] bot.py 통합 — error_handler 등록, /run에 ProjectLock 적용
-- [ ] launchd 등록 + 테스트 — **수동 작업**: plist 심볼릭 링크 + launchctl load
+- [x] launchd 등록 + 테스트 — plist 심볼릭 링크 + launchctl load 완료
 
 완료 기준: 노트북 재시작해도 봇+터널 자동 복구, 에러 시 알림.
 
@@ -90,5 +90,5 @@
 - [x] Phase 2 완료 — /run → Claude Code 실행 + webhook + Cloudflare Tunnel (bot.ki-garu.com)
 - [x] Phase 3 코드 구현 완료 — /pipeline 자동 체인 + 배치 큐 (테스트 60개)
 - [ ] Phase 3 잔여 — 배치 스케줄러(8시 알림) + /pipeline Bot E2E
-- [x] Phase 4 코드 구현 완료 — error_handler + task_queue + logger + /status + launchd plist (테스트 78개)
-- [ ] Phase 4 잔여 — launchd 등록 (수동) + Phase 3 배치 스케줄러 + 전체 E2E
+- [x] Phase 4 완료 — error_handler + task_queue + logger + /status + launchd 등록 완료 (테스트 78개)
+- [ ] 잔여 — 배치 스케줄러(8시 알림) + /pipeline Bot E2E + 전체 E2E

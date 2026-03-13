@@ -22,6 +22,7 @@ from src.pipeline import PipelineSession, create_session
 from src.result_parser import parse_claude_output
 from src.task_queue import ProjectLock
 from src import batch_review
+from src.batch_scheduler import get_next_run_time
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,15 @@ active_sessions: dict[str, PipelineSession] = {}
 
 # 프로젝트별 동시 실행 방지
 project_lock = ProjectLock()
+
+# 배치 스케줄러 인스턴스 (run.py에서 set)
+_batch_scheduler: object | None = None
+
+
+def set_batch_scheduler(scheduler: object) -> None:
+    """run.py에서 스케줄러 인스턴스를 등록한다."""
+    global _batch_scheduler
+    _batch_scheduler = scheduler
 
 
 async def _handle_run(update: Update, context: ContextTypes.DEFAULT_TYPE, config: dict) -> None:
@@ -129,6 +139,12 @@ async def _handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         lines.append(f"\n배치 큐: {batch_review.get_summary()}")
     else:
         lines.append("\n배치 큐: 비어있음")
+
+    # 다음 배치 스케줄
+    if _batch_scheduler is not None:
+        next_time = get_next_run_time(_batch_scheduler)
+        if next_time:
+            lines.append(f"\n다음 배치 알림: {next_time.strftime('%m/%d %H:%M')}")
 
     await update.message.reply_text("\n".join(lines))
 

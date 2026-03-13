@@ -2,12 +2,40 @@ import logging
 import os
 
 from src.config import load_config
-from src.bot import build_app
+from src.bot import build_app, set_batch_scheduler
+from src.batch_scheduler import start_scheduler, shutdown_scheduler
+from src.batch_review import flush_queue, get_summary, is_empty
 from src.logger import setup_logging
 
 setup_logging()
 
 logger = logging.getLogger(__name__)
+
+
+_scheduler = None
+
+
+def _start_batch_scheduler() -> None:
+    """배치 스케줄러를 시작하고 bot에 등록."""
+    global _scheduler
+
+    def _flush_callback() -> None:
+        if is_empty():
+            return
+        summary = get_summary()
+        flush_queue()
+        logger.info("배치 큐 flush: %s", summary[:100])
+
+    _scheduler = start_scheduler(_flush_callback, hour=8, minute=0)
+    set_batch_scheduler(_scheduler)
+
+
+def _stop_batch_scheduler() -> None:
+    """배치 스케줄러를 종료."""
+    global _scheduler
+    if _scheduler is not None:
+        shutdown_scheduler(_scheduler)
+        _scheduler = None
 
 
 def _run_webhook(tg_app, webhook_url: str, port: int = 8000):
@@ -18,10 +46,12 @@ def _run_webhook(tg_app, webhook_url: str, port: int = 8000):
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        _start_batch_scheduler()
         await tg_app.initialize()
         await tg_app.bot.set_webhook(webhook_url + "/webhook")
         logger.info("Webhook 등록 완료: %s/webhook", webhook_url)
         yield
+        _stop_batch_scheduler()
         await tg_app.bot.delete_webhook()
         await tg_app.shutdown()
 
@@ -53,5 +83,9 @@ if __name__ == "__main__":
         port = int(os.environ.get("PORT", "8000"))
         _run_webhook(app, webhook_url, port)
     else:
+        _start_batch_scheduler()
         logger.info("Pipeline Bot 시작 (polling 모드)...")
-        app.run_polling()
+        try:
+            app.run_polling()
+        finally:
+            _stop_batch_scheduler()
