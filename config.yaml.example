@@ -1,0 +1,38 @@
+telegram:
+  bot_token: "YOUR_BOT_TOKEN_HERE"
+  group_id: -100XXXXXXXXXX
+  topics:
+    kigaru:
+      thread_id: 123
+      project_path: "/Users/ysh/dev/kigaru"
+
+pipelines:
+  default:
+    - step: plan-sync mymd/todo
+      approve: auto
+    - step: next-task
+      approve: required
+    - step: plan {task_id}
+      approve: required
+    - step: tdd
+      approve: batch
+    - step: code-review
+      approve: batch
+    - step: handoff-verify
+      approve: batch
+    - step: commit-push-pr
+      approve: required
+
+trust_levels:
+  auto:
+    - lint-fix
+    - simple-refactor
+    - plan-sync
+  batch:
+    - tdd
+    - code-review
+    - handoff-verify
+  required:
+    - commit-push-pr
+    - new-feature
+    - ux-change
