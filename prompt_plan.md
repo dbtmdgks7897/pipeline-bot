@@ -39,7 +39,7 @@
 - [x] execute_next() — trust_level 기반 체인 실행 (auto/required/batch)
 - [x] src/bot.py — /pipeline 핸들러 + pipeline_approve/reject 콜백
 - [x] src/batch_review.py — BatchReviewQueue (불변 패턴, add/flush/format_summary)
-- [ ] 배치 스케줄러 — 아침 8시 일괄 알림 (APScheduler)
+- [x] 배치 스케줄러 — 아침 8시 일괄 알림 (APScheduler, BackgroundScheduler + CronTrigger)
 - [ ] 테스트: /pipeline → auto 자동 통과, required 멈춤, batch 큐잉 확인 — **Bot E2E**
 
 완료 기준: /pipeline 한 번으로 체인이 돌고 승인 지점에서만 멈춘다.
@@ -88,7 +88,6 @@
 - [x] 프로젝트 초기화 (CLAUDE.md, spec.md, prompt_plan.md 생성)
 - [x] Phase 1 완료 — /send → 로컬 파일 생성 (테스트 13개)
 - [x] Phase 2 완료 — /run → Claude Code 실행 + webhook + Cloudflare Tunnel (bot.ki-garu.com)
-- [x] Phase 3 코드 구현 완료 — /pipeline 자동 체인 + 배치 큐 (테스트 60개)
-- [ ] Phase 3 잔여 — 배치 스케줄러(8시 알림) + /pipeline Bot E2E
+- [x] Phase 3 코드 구현 완료 — /pipeline 자동 체인 + 배치 큐 + 배치 스케줄러 (테스트 86개)
 - [x] Phase 4 완료 — error_handler + task_queue + logger + /status + launchd 등록 완료 (테스트 78개)
-- [ ] 잔여 — 배치 스케줄러(8시 알림) + /pipeline Bot E2E + 전체 E2E
+- [ ] 잔여 — /pipeline Bot E2E + 전체 E2E
