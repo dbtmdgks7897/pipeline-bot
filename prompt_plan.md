@@ -48,12 +48,13 @@
 
 목표: 에러 복구 + 자동 시작 + 로깅.
 
-- [ ] src/error_handler.py — 전역 에러 핸들러 + Telegram 에러 알림
-- [ ] src/task_queue.py — ProjectLock 동시 실행 방지
-- [ ] src/logger.py — 파일 + 콘솔 로깅
-- [ ] launchd plist 작성 — 노트북 재시작 시 봇+터널 자동 복구
-- [ ] /status 명령 — 현재 실행 중인 작업 상태 조회
-- [ ] 테스트: 노트북 재시작 → 자동 복구, 에러 시 알림 확인
+- [x] src/error_handler.py — 전역 에러 핸들러 (format_error_message + telegram_error_handler)
+- [x] src/task_queue.py — ProjectLock 동시 실행 방지 (acquire/release/running_projects)
+- [x] src/logger.py — 파일(일별 로테이션 7일) + 콘솔 로깅
+- [x] launchd plist 작성 — com.pipeline-bot + com.cloudflared-tunnel (자동 재시작)
+- [x] /status 명령 — 실행 중 프로젝트 + 파이프라인 + 배치 큐 상태
+- [x] bot.py 통합 — error_handler 등록, /run에 ProjectLock 적용
+- [ ] launchd 등록 + 테스트 — **수동 작업**: plist 심볼릭 링크 + launchctl load
 
 완료 기준: 노트북 재시작해도 봇+터널 자동 복구, 에러 시 알림.
 
@@ -89,4 +90,5 @@
 - [x] Phase 2 완료 — /run → Claude Code 실행 + webhook + Cloudflare Tunnel (bot.ki-garu.com)
 - [x] Phase 3 코드 구현 완료 — /pipeline 자동 체인 + 배치 큐 (테스트 60개)
 - [ ] Phase 3 잔여 — 배치 스케줄러(8시 알림) + /pipeline Bot E2E
-- [ ] Phase 4 미착수 — 에러 핸들링 + launchd + /status
+- [x] Phase 4 코드 구현 완료 — error_handler + task_queue + logger + /status + launchd plist (테스트 78개)
+- [ ] Phase 4 잔여 — launchd 등록 (수동) + Phase 3 배치 스케줄러 + 전체 E2E

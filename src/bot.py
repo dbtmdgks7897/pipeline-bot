@@ -16,9 +16,12 @@ from telegram.ext import (
 
 from src.config import get_project_by_thread_id
 from src.claude_runner import run_claude
+from src.error_handler import telegram_error_handler
 from src.file_ops import save_md_to_todo
 from src.pipeline import PipelineSession, create_session
 from src.result_parser import parse_claude_output
+from src.task_queue import ProjectLock
+from src import batch_review
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +30,9 @@ pending_runs: dict[str, dict] = {}
 
 # session_id → PipelineSession  (/pipeline 전용)
 active_sessions: dict[str, PipelineSession] = {}
+
+# 프로젝트별 동시 실행 방지
+project_lock = ProjectLock()
 
 
 async def _handle_run(update: Update, context: ContextTypes.DEFAULT_TYPE, config: dict) -> None:
@@ -58,6 +64,14 @@ async def _handle_run(update: Update, context: ContextTypes.DEFAULT_TYPE, config
 async def _execute_and_report(update: Update, project: dict, command: str) -> None:
     """Claude Code 실행 후 결과를 Telegram으로 전송."""
     assert update.message is not None
+
+    if not await project_lock.acquire(project["name"]):
+        await update.message.reply_text(
+            f"⚠️ {project['name']}에서 이미 작업이 실행 중입니다.\n"
+            "/status 로 현재 상태를 확인하세요."
+        )
+        return
+
     try:
         result = await run_claude(command, project["path"])
         message = parse_claude_output(result, command, project["name"])
@@ -78,6 +92,45 @@ async def _execute_and_report(update: Update, project: dict, command: str) -> No
     except Exception as e:
         logger.error("실행 중 오류: %s", e)
         await update.message.reply_text(f"❌ 실행 중 오류 발생: {e}")
+    finally:
+        project_lock.release(project["name"])
+
+
+async def _handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/status 핸들러: 현재 실행 중인 작업 상태를 보여준다."""
+    assert update.message is not None
+
+    lines = ["📊 Pipeline Bot 상태\n"]
+
+    # 실행 중인 프로젝트
+    running = project_lock.running_projects()
+    if running:
+        lines.append("실행 중:")
+        for name in running:
+            lines.append(f"  • {name}")
+    else:
+        lines.append("실행 중: 없음")
+
+    # 파이프라인 세션
+    if active_sessions:
+        lines.append("\n파이프라인:")
+        for session in active_sessions.values():
+            step = session.current_step
+            step_info = f"{step.command} ({step.status.value})" if step else "완료"
+            lines.append(
+                f"  • {session.project['name']} — "
+                f"[{session.current_index + 1}/{len(session.steps)}] {step_info}"
+            )
+    else:
+        lines.append("\n파이프라인: 없음")
+
+    # 배치 큐
+    if not batch_review.is_empty():
+        lines.append(f"\n배치 큐: {batch_review.get_summary()}")
+    else:
+        lines.append("\n배치 큐: 비어있음")
+
+    await update.message.reply_text("\n".join(lines))
 
 
 async def _handle_pipeline(update: Update, context: ContextTypes.DEFAULT_TYPE, config: dict) -> None:
@@ -310,7 +363,9 @@ def build_app(config: dict):
     )
     app.add_handler(CommandHandler("run", lambda u, c: _handle_run(u, c, config)))
     app.add_handler(CommandHandler("pipeline", lambda u, c: _handle_pipeline(u, c, config)))
+    app.add_handler(CommandHandler("status", _handle_status))
     app.add_handler(CallbackQueryHandler(_handle_callback))
+    app.add_error_handler(telegram_error_handler)
 
     return app
 
