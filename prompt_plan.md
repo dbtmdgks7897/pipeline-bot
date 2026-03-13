@@ -26,8 +26,8 @@
 - [x] src/bot.py — /run 핸들러 + 인라인 버튼 (승인/거절/피드백)
 - [x] 콜백 핸들러 — 버튼 클릭 처리
 - [x] run.py 수정 — WEBHOOK_URL 환경변수로 polling/webhook 모드 전환 (FastAPI + uvicorn)
-- [ ] Cloudflare Tunnel 설정 — **수동 작업**: cloudflared + WEBHOOK_URL 환경변수 설정
-- [ ] 테스트: 폰 → /run 명령 → 결과 수신 → 버튼 동작 확인 — **Bot E2E**
+- [x] Cloudflare Tunnel 설정 — bot.ki-garu.com, tunnel: f377d703, webhook 모드 확인
+- [x] 테스트: 폰 → /run 명령 → 결과 수신 → 버튼 동작 확인 — **Bot E2E**
 
 완료 기준: 폰에서 Claude Code 명령 실행 → 결과 수신 → 승인/거절 가능.
 
@@ -35,12 +35,12 @@
 
 목표: 승인 한 번이면 다음 스텝이 자동으로 이어진다.
 
-- [ ] src/pipeline.py — PipelineSession 상태 관리 클래스
-- [ ] execute_step() — trust_level 기반 체인 실행 엔진
-- [ ] src/bot.py — /pipeline 핸들러 (전체 체인 시작)
-- [ ] 파이프라인 콜백 — 승인 → 다음 스텝, 거절 → rollback, 피드백 → 재실행
-- [ ] src/batch_review.py — 배치 큐 + 아침 8시 일괄 알림
-- [ ] 테스트: /pipeline → auto 자동 통과, required 멈춤, batch 큐잉 확인
+- [x] src/pipeline.py — PipelineSession 상태 관리 (불변 패턴, frozen dataclass)
+- [x] execute_next() — trust_level 기반 체인 실행 (auto/required/batch)
+- [x] src/bot.py — /pipeline 핸들러 + pipeline_approve/reject 콜백
+- [x] src/batch_review.py — BatchReviewQueue (불변 패턴, add/flush/format_summary)
+- [ ] 배치 스케줄러 — 아침 8시 일괄 알림 (APScheduler)
+- [ ] 테스트: /pipeline → auto 자동 통과, required 멈춤, batch 큐잉 확인 — **Bot E2E**
 
 완료 기준: /pipeline 한 번으로 체인이 돌고 승인 지점에서만 멈춘다.
 

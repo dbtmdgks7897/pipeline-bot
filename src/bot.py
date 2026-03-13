@@ -17,12 +17,16 @@ from telegram.ext import (
 from src.config import get_project_by_thread_id
 from src.claude_runner import run_claude
 from src.file_ops import save_md_to_todo
+from src.pipeline import PipelineSession, create_session
 from src.result_parser import parse_claude_output
 
 logger = logging.getLogger(__name__)
 
-# run_id → {"project": ..., "command": ...}  (Phase 3에서 pipeline.py로 이관)
+# run_id → {"project": ..., "command": ...}  (/run 전용)
 pending_runs: dict[str, dict] = {}
+
+# session_id → PipelineSession  (/pipeline 전용)
+active_sessions: dict[str, PipelineSession] = {}
 
 
 async def _handle_run(update: Update, context: ContextTypes.DEFAULT_TYPE, config: dict) -> None:
@@ -76,11 +80,122 @@ async def _execute_and_report(update: Update, project: dict, command: str) -> No
         await update.message.reply_text(f"❌ 실행 중 오류 발생: {e}")
 
 
-async def _handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """인라인 버튼 콜백 처리."""
+async def _handle_pipeline(update: Update, context: ContextTypes.DEFAULT_TYPE, config: dict) -> None:
+    """/pipeline 핸들러: 파이프라인 체인을 시작한다."""
+    assert update.message is not None
+    thread_id = update.message.message_thread_id
+    project = get_project_by_thread_id(config, thread_id)
+
+    if not project:
+        await update.message.reply_text(
+            "❌ 이 토픽에 연결된 프로젝트가 없습니다.\n"
+            "config.yaml에서 thread_id를 확인하세요."
+        )
+        return
+
+    session = create_session(config, project)
+    active_sessions[session.session_id] = session
+
+    step_names = [s.command for s in session.steps]
+    await update.message.reply_text(
+        f"🚀 {project['name']} — 파이프라인 시작 ({len(session.steps)}개 스텝)\n"
+        + "\n".join(f"  {i+1}. {name}" for i, name in enumerate(step_names))
+    )
+
+    asyncio.create_task(_run_pipeline(session, update))
+
+
+def _make_send_fn(reply_text_fn):
+    """reply_text 함수를 감싸서 pipeline용 send_fn을 생성한다."""
+
+    async def send_fn(text: str, keyboard_data: object) -> None:
+        if keyboard_data and isinstance(keyboard_data, dict):
+            session_id = keyboard_data.get("session_id", "")
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "✅ 승인", callback_data=f"pipeline_approve:{session_id}"
+                    ),
+                    InlineKeyboardButton(
+                        "❌ 거절", callback_data=f"pipeline_reject:{session_id}"
+                    ),
+                ]
+            ])
+            await reply_text_fn(text, reply_markup=keyboard)
+        else:
+            await reply_text_fn(text)
+
+    return send_fn
+
+
+async def _run_pipeline(session: PipelineSession, update: Update) -> None:
+    """파이프라인을 실행하고 세션 상태를 업데이트한다."""
+    try:
+        assert update.message is not None
+        send_fn = _make_send_fn(update.message.reply_text)
+        updated = await session.execute_next(send_fn)
+        active_sessions[updated.session_id] = updated
+        if updated.is_complete:
+            del active_sessions[updated.session_id]
+    except Exception as e:
+        logger.error("파이프라인 실행 중 오류: %s", e)
+        assert update.message is not None
+        await update.message.reply_text(f"❌ 파이프라인 오류: {e}")
+
+
+async def _handle_pipeline_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """pipeline_approve/pipeline_reject 콜백 처리."""
     query = update.callback_query
     assert query is not None
     assert query.data is not None
+    await query.answer()
+
+    parts = query.data.split(":", 1)
+    if len(parts) != 2:
+        return
+
+    action, session_id = parts
+    await query.edit_message_reply_markup(reply_markup=None)
+
+    assert query.message is not None
+    msg = cast(Message, query.message)
+
+    session = active_sessions.get(session_id)
+    if not session:
+        await msg.reply_text("❌ 세션을 찾을 수 없습니다.")
+        return
+
+    if action == "pipeline_approve":
+        await msg.reply_text("✅ 승인됨 — 다음 스텝 실행 중...")
+        advanced = session.advance()
+        active_sessions[session_id] = advanced
+        send_fn = _make_send_fn(msg.reply_text)
+
+        try:
+            updated = await advanced.execute_next(send_fn)
+            active_sessions[session_id] = updated
+            if updated.is_complete:
+                del active_sessions[session_id]
+        except Exception as e:
+            logger.error("파이프라인 실행 중 오류: %s", e)
+            await msg.reply_text(f"❌ 파이프라인 오류: {e}")
+
+    elif action == "pipeline_reject":
+        await msg.reply_text("❌ 파이프라인 중단됨")
+        del active_sessions[session_id]
+
+
+async def _handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """인라인 버튼 콜백 라우터."""
+    query = update.callback_query
+    assert query is not None
+    assert query.data is not None
+
+    if query.data.startswith("pipeline_"):
+        await _handle_pipeline_callback(update, context)
+        return
+
+    # /run 콜백 처리
     await query.answer()
 
     parts = query.data.split(":", 1)
@@ -194,6 +309,7 @@ def build_app(config: dict):
         )
     )
     app.add_handler(CommandHandler("run", lambda u, c: _handle_run(u, c, config)))
+    app.add_handler(CommandHandler("pipeline", lambda u, c: _handle_pipeline(u, c, config)))
     app.add_handler(CallbackQueryHandler(_handle_callback))
 
     return app
