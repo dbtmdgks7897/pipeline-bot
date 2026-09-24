@@ -1,5 +1,15 @@
-# Progress Log
+# Progress
 
+## Where things stand (2026-03-13)
+Dormant since 2026-03-13. Phase 4 stabilization shipped (error_handler,
+task_queue, logger, /status, launchd) and the APScheduler daily 08:00 batch
+queue flush. Tests were 78/78 at last run. See `## Log` for the per-command
+history kept before 2026-09-24.
+
+## Next
+- [ ] (none — project is dormant; add items when reactivated)
+
+## Log
 | Date | Stage | Status | Summary |
 |------|-------|--------|---------|
 | 2026-03-13 01:45 | /plan Phase 1 | completed | 5개 태스크 계획, 리스크 1개 식별 |
