@@ -6,6 +6,12 @@ task_queue, logger, /status, launchd) and the APScheduler daily 08:00 batch
 queue flush. Tests were 78/78 at last run. See `## Log` for the per-command
 history kept before 2026-09-24.
 
+In flight, uncommitted since March 2026: edits to `CLAUDE.md`,
+`prompt_plan.md`, `src/bot.py`, `src/claude_runner.py`,
+`src/error_handler.py`, `src/pipeline.py`, `tests/test_pipeline.py`, plus
+untracked `.coverage` and `prompt_plan.archived.md`. Review and either
+commit or discard these before resuming work.
+
 ## Next
 - [ ] (none — project is dormant; add items when reactivated)
 
